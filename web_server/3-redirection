@@ -1,26 +1,46 @@
 #!/usr/bin/env bash
-# Configures an Nginx server so that /redirect_me redirects to another page.
-# The redirection is configured as a "301 Moved Permanently"
+# Script to configure Nginx on a brand new Ubuntu machine to set up:
+# 1. A permanent (301) redirection for the /redirect_me path
+# 2. Redirection target: https://www.youtube.com/watch?v=QH2-TGUlwu4
 
-apt-get update
-apt-get install -y nginx
+# Use -y for apt-get as required by the README
+apt-get -y update
+apt-get -y install nginx
 
-mkdir -p /var/www/html
-echo "Holberton School for the win!" > /var/www/html/index.html
+CONFIG_FILE="/etc/nginx/sites-available/default"
+REDIRECT_URL="https://www.youtube.com/watch?v=QH2-TGUlwu4"
 
-printf %s "server {
+# 1. Create a basic default Nginx configuration file with a placeholder line.
+# We include the 'location /' block from the default config and add a placeholder.
+printf '%s' "server {
     listen 80 default_server;
     listen [::]:80 default_server;
     root /var/www/html;
     index index.html index.htm;
     server_name _;
+
+    # REDIRECT_PLACEHOLDER_LINE
+
     location / {
         try_files \$uri \$uri/ =404;
     }
-    location /redirect_me {
-        return 301 https://www.youtube.com/watch?v=QH2-TGUlwu4;
-    }
 }
-" > /etc/nginx/sites-available/default
+" > "$CONFIG_FILE"
 
-service nginx restart
+# 2. Use sed to replace the single placeholder line with the multi-line location block.
+# This fulfills the requirement to "Replace a line with multiple lines with sed".
+sed -i "/# REDIRECT_PLACEHOLDER_LINE/c\
+    location /redirect_me {\
+        return 301 $REDIRECT_URL;\
+    }" "$CONFIG_FILE"
+
+# 3. Create the symlink to enable the config (if not already done by install)
+if [ ! -f /etc/nginx/sites-enabled/default ]; then
+    ln -sf "$CONFIG_FILE" /etc/nginx/sites-enabled/default
+fi
+
+# 4. Check for configuration syntax
+nginx -t
+
+# 5. Restart Nginx service using the init.d script (avoids systemctl/service wrapper)
+/etc/init.d/nginx restart
